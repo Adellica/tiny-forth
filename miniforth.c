@@ -119,24 +119,18 @@ void tf_stack_print_hex(tf_stack *stack) {
 }
 
 int main() {
-  char mystack[] =
-    "\x02\x01\x00\x00\x00"
-    "\x03\x01\x00\x00\x00"
-    "\x02\x01\x00\x00\x00"
-    "                                                                                ";
   int i;
-  tf_stack _stack;
-  tf_stack *stack = &_stack; // so everybody does stack->
+  tf_stack _stack, *stack = &_stack; // so everybody does stack->
   tf_stack_init(stack);
 
-  //tf_item item;
-  //tf_stack_peek_item(&stack, &item);
-  //printf("size %d val %d\n", item.size, item.data[0]);
-  tf_stack_print(stack);
-  printf("\n");
   tf_stack_push_i32(stack, 5);
+  tf_stack_push_i32(stack, 10);
   tf_stack_push_i32(stack, 7);
-  tf_stack_print_hex(stack);
+  tf_stack_print(stack);
+
+  tf_native_plus(stack);
+  tf_stack_print(stack);
+
   tf_native_plus(stack);
   tf_stack_print(stack);
 
