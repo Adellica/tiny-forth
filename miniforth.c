@@ -144,7 +144,7 @@ void tf_stack_print_hex(tf_stack *stack) {
 }
 
 
-// ==================== reader / tokenizer ====================
+// ============================== reader / tokenizer ==============================
 // ok     reads fixnum, string, symbols
 // todo   lazy buffers / interactive / don't need everything in memory
 
