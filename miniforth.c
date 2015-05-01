@@ -104,6 +104,23 @@ int tf_native_plus(tf_stack *stack) {
   return 0;
 }
 
+// we don't have null-terminated strings, we have explicit
+// length. wish there was a printf for that.
+void tf_print_blob(char* str, int len) {
+  fwrite(str, len, 1, stdout);
+}
+
+void tf_print_item(tf_item *item) {
+  if(item->type == TF_TYPE_FIXNUM) {
+    printf("%d", *(i32*)item->data);
+  } else if (item->type == TF_TYPE_STRING) {
+    printf("\""); tf_print_blob(item->data, item->size); printf("\"");
+  } else if (item->type == TF_TYPE_SYMBOL) {
+    tf_print_blob(item->data, item->size);
+  } else
+    printf("error 510ff023 invalid type %x02!!!\n", item->type);
+}
+
 void tf_stack_print(tf_stack *stack) {
   int i = 0;
   tf_stack copy = *stack;
@@ -111,7 +128,8 @@ void tf_stack_print(tf_stack *stack) {
   while(stack->position > 0) {
     int pos = stack->position;
     tf_stack_pop_item(stack, &item);
-    printf("%d:  (%08x %4d) size: %d val: %d\n", i, item.data, pos,  item.size, item.data[0]);
+    printf("%d: %02x %d bytes: ", i, item.type, item.size);
+    tf_print_item(&item); printf("\n");
     i++;
     //printf("nx %d\n", stack->position);
   }
