@@ -114,7 +114,7 @@ void tf_stack_print(tf_stack *stack) {
 void tf_stack_print_hex(tf_stack *stack) {
   int i;
   for(i = 0 ; i < stack->position ; i++) {
-    printf("%02x ", stack->root[i]);
+    printf("%02x ", (stack->root[i] & 0xFF));
   }
   printf("\n");
 }
