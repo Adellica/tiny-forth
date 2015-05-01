@@ -93,7 +93,6 @@ void tf_stack_push_symbol(tf_stack *stack, char* str, int len) {
 i32 tf_stack_pop_i32(tf_stack *stack) {
   tf_item top;
   tf_stack_pop_item(stack, &top);
-  printf("pop: %d \n", *(i32*)top.data);
   // todo check blocklen & type
   return *(i32*)(top.data);
 }
