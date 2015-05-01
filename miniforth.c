@@ -97,13 +97,6 @@ i32 tf_stack_pop_i32(tf_stack *stack) {
   return *(i32*)(top.data);
 }
 
-int tf_native_plus(tf_stack *stack) {
-  int a = tf_stack_pop_i32(stack);
-  int b = tf_stack_pop_i32(stack);
-  tf_stack_push_fixnum(stack, a + b);
-  return 0;
-}
-
 // we don't have null-terminated strings, we have explicit
 // length. wish there was a printf for that.
 void tf_print_blob(char* str, int len) {
@@ -190,6 +183,44 @@ char* tf_read(tf_stack *stack, char *str) {
 }
 
 
+// ============================== library ==============================
+
+void tf_add(tf_stack *stack) {
+  int a = tf_stack_pop_i32(stack);
+  int b = tf_stack_pop_i32(stack);
+  tf_stack_push_fixnum(stack, a + b);
+}
+
+void tf_subtract(tf_stack *stack) {
+  i32 t0 = tf_stack_pop_i32(stack);
+  tf_stack_push_fixnum(stack, tf_stack_pop_i32(stack) - t0);
+}
+
+void tf_multiply(tf_stack *stack) {
+  tf_stack_push_fixnum(stack, tf_stack_pop_i32(stack) * tf_stack_pop_i32(stack));
+}
+
+void tf_dup(tf_stack *stack) {
+  int n = tf_stack_pop_i32(stack);
+  tf_stack_push_fixnum(stack, n);
+  tf_stack_push_fixnum(stack, n);
+}
+
+typedef void (*tf_proc)(tf_stack*);
+
+typedef struct tf_symbol {
+  char *name;
+  tf_proc proc;
+} tf_symbol;
+
+tf_symbol tf_procedures[] =
+  { {"add", tf_add},
+    {"sub", tf_subtract},
+    {"mult", tf_multiply},
+    {"dup", tf_dup},
+    {},
+  };
+
 int main() {
   int i;
   tf_stack _stack, *stack = &_stack; // so everybody does stack->
@@ -197,9 +228,32 @@ int main() {
 
 
   char *end;
-  char _s[] = " 124  \"a b c\"  \n\r\n12 0xFF 1G \"foo\"", *s = _s;
+  char _s[] = // (* 256 256)
+    " \"I'm gonna square 256\" \n\n"
+    "\n\n    0x100 dup mult   \n\n"
+    " \"^--- 10 - 5\""
+    "\n\r\n 10 7 sub  \"\"", *s = _s;
+
   while(s != 0) {
     s = tf_read(stack, s);
+    int pos = stack->position;
+    tf_item item;
+    tf_stack_pop_item(stack, &item);
+    if(item.type == TF_TYPE_SYMBOL) {
+      printf("executing "); tf_print_item(&item); printf("\n");
+      int i = 0;
+      while(1) {
+        char* global = tf_procedures[i].name;
+        if(global == 0) { printf("error cannot find procedure ");tf_print_item(&item);printf("\n");break;}
+        if(strlen(global) == item.size && memcmp(tf_procedures[i].name, item.data, item.size) == 0) {
+          printf("");
+          tf_procedures[i].proc(stack);
+          break;
+        }
+        i++;
+      }
+    } else // keep self-evaluating items on stack
+      stack->position = pos;
   }
   tf_stack_print(stack);
 
