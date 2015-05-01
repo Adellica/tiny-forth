@@ -17,12 +17,11 @@ typedef struct tf_stack {
 typedef struct tf_item {
   int size;
   int type;
-  //int type;
   char* data;
 } tf_item;
 
 void tf_stack_init(tf_stack *stack) {
-  stack->root = 0; // realloc with 0 ptr is like malloc. fis pre
+  stack->root = 0; // realloc with 0 ptr is like malloc
   stack->size = 0;
   stack->position = 0;
 }
@@ -31,11 +30,13 @@ void tf_stack_free(tf_stack *stack) {
   stack->root = 0;
 }
 
+// return pointer at current stack position
 char* tf_stack_pt(tf_stack *stack) {
   return &stack->root[stack->position];
 }
 
-
+// grow stack if needed to fit extra size bytes.
+// todo: make it shrink too?
 void tf_stack_ensure_size(tf_stack *stack, int size) {
   // todo: too many reallocs here for big blobs in start of blob
   while(stack->position + size > stack->size) {
@@ -53,12 +54,14 @@ void _tf_stack_push_blob(tf_stack *stack, tf_size len, char* data) {
   stack->position += len;
 }
 
+// place a simple blob of fixed size onto stack. this size much be known at pop-time!
 char* _tf_stack_pop_blob(tf_stack *stack, tf_size len) {
   if(stack->position < len) { printf("error 6f13cf5a stack underflow\n");exit(0);}
   stack->position -= len;
   return tf_stack_pt(stack);
 }
 
+// push an item to stack
 void tf_stack_push(tf_stack *stack, tf_size len, char* data, tf_type type) {
 
   tf_stack_ensure_size(stack, len + sizeof(tf_type) + sizeof(tf_size));
@@ -67,7 +70,7 @@ void tf_stack_push(tf_stack *stack, tf_size len, char* data, tf_type type) {
   _tf_stack_push_blob(stack, sizeof(tf_size), (char*)&len);
 }
 
-// fill in with stack top witout modifying stack
+// pop an item from stack
 void tf_stack_pop_item(tf_stack *stack, tf_item *item) {
   item->size = *(tf_size*)  _tf_stack_pop_blob(stack, sizeof(tf_size));
   item->type = *(tf_type*)  _tf_stack_pop_blob(stack, sizeof(tf_type));
