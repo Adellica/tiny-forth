@@ -131,7 +131,6 @@ void tf_stack_print(tf_stack *stack) {
     printf("%d: %02x %d bytes: ", i, item.type, item.size);
     tf_print_item(&item); printf("\n");
     i++;
-    //printf("nx %d\n", stack->position);
   }
   stack->position = copy.position;
 }
@@ -162,6 +161,7 @@ char* read_fixnum(tf_stack *stack, char *str) {
   return str;
 }
 
+// todo: escape sequences?
 char* read_string(tf_stack *stack, char *str) {
   if(str[0] == '"') {
     str++; // consume first double-quote
@@ -194,18 +194,6 @@ int main() {
   int i;
   tf_stack _stack, *stack = &_stack; // so everybody does stack->
   tf_stack_init(stack);
-
-  tf_stack_push_fixnum(stack, 5);
-  tf_stack_push_fixnum(stack, 10);
-  tf_stack_push_fixnum(stack, 7);
-  tf_stack_print(stack);
-
-  tf_native_plus(stack);
-  tf_stack_print(stack);
-
-  tf_native_plus(stack);
-  tf_stack_print(stack);
-
 
 
   char *end;
