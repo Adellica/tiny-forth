@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define TF_TYPE_FIXNUM 0xFF
+#define TF_TYPE_STRING 0xFE
+#define TF_TYPE_SYMBOL 0xFD
 
 typedef unsigned int tf_size;
 typedef unsigned char tf_type;
@@ -77,8 +80,14 @@ void tf_stack_pop_item(tf_stack *stack, tf_item *item) {
   item->data =              _tf_stack_pop_blob(stack, item->size);
 }
 
-void tf_stack_push_i32(tf_stack *stack, i32 value) {
-  tf_stack_push(stack, sizeof(i32), (char*)&value, 0);
+void tf_stack_push_fixnum(tf_stack *stack, i32 value) {
+  tf_stack_push(stack, sizeof(i32), (char*)&value, TF_TYPE_FIXNUM);
+}
+void tf_stack_push_string(tf_stack *stack, char* str, int len) {
+  tf_stack_push(stack, len, str, TF_TYPE_STRING);
+}
+void tf_stack_push_symbol(tf_stack *stack, char* str, int len) {
+  tf_stack_push(stack, len, str, TF_TYPE_SYMBOL);
 }
 
 i32 tf_stack_pop_i32(tf_stack *stack) {
@@ -92,7 +101,7 @@ i32 tf_stack_pop_i32(tf_stack *stack) {
 int tf_native_plus(tf_stack *stack) {
   int a = tf_stack_pop_i32(stack);
   int b = tf_stack_pop_i32(stack);
-  tf_stack_push_i32(stack, a + b);
+  tf_stack_push_fixnum(stack, a + b);
   return 0;
 }
 
@@ -118,14 +127,60 @@ void tf_stack_print_hex(tf_stack *stack) {
   printf("\n");
 }
 
+
+// ==================== reader / tokenizer ====================
+// ok     reads fixnum, string, symbols
+// todo   lazy buffers / interactive / don't need everything in memory
+
+char is_ws(char c) { if(c == ' ' || c == '\t' || c == '\n' || c == '\r') return 1; return 0; }
+char* read_ws(tf_stack *stack, char *str) { while(is_ws(str[0])) {str++;} return str; }
+
+char* read_fixnum(tf_stack *stack, char *str) {
+  char *end;
+  int val = strtol(str, &end, 0);
+  if(end != str && is_ws(end[0])) {
+    tf_stack_push_fixnum(stack, val);
+    return end;
+  }
+  return str;
+}
+
+char* read_string(tf_stack *stack, char *str) {
+  if(str[0] == '"') {
+    str++; // consume first double-quote
+    char *start = str;
+    while(str[0] != '"') str++; // todo: check for zero byte?
+    tf_stack_push_string(stack, start, str - start);
+    str++; // consume last doublequote
+  }
+  return str;
+}
+
+char* read_symbol(tf_stack *stack, char *str) {
+  char* start = str;
+  while(!is_ws(str[0])) str++;
+  if(start != str) { tf_stack_push_symbol(stack, start, str - start); }
+  return str;
+}
+
+char* tf_read(tf_stack *stack, char *str) {
+  char* tmp;
+  if(str[0] == 0) return 0;
+  str = read_ws(stack, str);
+  if((tmp = read_fixnum(stack, str)) != str) return tmp;
+  else if((tmp = read_string(stack, str)) != str) return tmp;
+  return read_symbol(stack, str);
+}
+
+
 int main() {
   int i;
   tf_stack _stack, *stack = &_stack; // so everybody does stack->
   tf_stack_init(stack);
 
-  tf_stack_push_i32(stack, 5);
-  tf_stack_push_i32(stack, 10);
-  tf_stack_push_i32(stack, 7);
+  tf_stack_push_fixnum(stack, 5);
+  tf_stack_push_fixnum(stack, 10);
+  tf_stack_push_fixnum(stack, 7);
   tf_stack_print(stack);
 
   tf_native_plus(stack);
@@ -133,6 +188,16 @@ int main() {
 
   tf_native_plus(stack);
   tf_stack_print(stack);
+
+
+
+  char *end;
+  char _s[] = " 124  \"a b c\"  \n\r\n12 0xFF 1G \"foo\"", *s = _s;
+  while(s != 0) {
+    s = tf_read(stack, s);
+  }
+  tf_stack_print(stack);
+
 
   tf_stack_free(stack);
   return 0;
