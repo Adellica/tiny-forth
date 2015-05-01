@@ -62,7 +62,7 @@ char* _tf_stack_pop_blob(tf_stack *stack, tf_size len) {
 void tf_stack_push(tf_stack *stack, tf_size len, char* data, tf_type type) {
 
   tf_stack_ensure_size(stack, len + sizeof(tf_type) + sizeof(tf_size));
-  //_tf_stack_push_blob(stack, sizeof(tf_type), (char*)&type);             // copy payload in
+  _tf_stack_push_blob(stack, sizeof(tf_type), (char*)&type);             // copy payload in
   _tf_stack_push_blob(stack, len, data);             // copy payload in
   _tf_stack_push_blob(stack, sizeof(tf_size), (char*)&len); // copy len descriptors in
 }
@@ -74,7 +74,7 @@ void tf_stack_pop_item(tf_stack *stack, tf_item *item) {
   printf("top size: %d\n", item->size);
 
   item->data = _tf_stack_pop_blob(stack, item->size);
-  //item->type = *(tf_type*)_tf_stack_pop_blob(stack, sizeof(tf_size));
+  item->type = *(tf_type*)_tf_stack_pop_blob(stack, sizeof(tf_type));
 }
 
 
