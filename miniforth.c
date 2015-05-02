@@ -289,6 +289,27 @@ char tf_cursor_reader_stdin_peek(tf_cursor *c) {
   return (char)c->_rbuff;
 }
 
+void tf_eval_top(tf_stack *stack) {
+  int save_pos = stack->position;
+  tf_item item;
+  tf_stack_pop_item(stack, &item);
+  if(item.type == TF_TYPE_SYMBOL) {
+    printf("executing "); tf_print_item(&item); printf("\n");
+    int i = 0;
+    while(1) {
+      char* global = tf_procedures[i].name;
+      if(global == 0) { printf("error cannot find procedure ");tf_print_item(&item);printf("\n");break;}
+      if(strlen(global) == item.size && memcmp(tf_procedures[i].name, item.data, item.size) == 0) {
+        printf("");
+        tf_procedures[i].proc(stack);
+        break;
+      }
+      i++;
+    }
+  } else // keep self-evaluating items on stack
+    stack->position = save_pos;
+}
+
 int main() {
   tf_stack _stack, *stack = &_stack; // so everybody does stack->
   tf_stack_init(stack);
@@ -298,24 +319,7 @@ int main() {
 
   while(1) {
     if(!tf_read(stack, cursor)) break;
-    int pos = stack->position;
-    tf_item item;
-    tf_stack_pop_item(stack, &item);
-    if(item.type == TF_TYPE_SYMBOL) {
-      printf("executing "); tf_print_item(&item); printf("\n");
-      int i = 0;
-      while(1) {
-        char* global = tf_procedures[i].name;
-        if(global == 0) { printf("error cannot find procedure ");tf_print_item(&item);printf("\n");break;}
-        if(strlen(global) == item.size && memcmp(tf_procedures[i].name, item.data, item.size) == 0) {
-          printf("");
-          tf_procedures[i].proc(stack);
-          break;
-        }
-        i++;
-      }
-    } else // keep self-evaluating items on stack
-      stack->position = pos;
+    tf_eval_top(stack);
   }
   tf_stack_print(stack);
 
