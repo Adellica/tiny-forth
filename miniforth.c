@@ -158,6 +158,7 @@ void tf_stack_print_hex(tf_stack *stack) {
 // - this means we can't use strtol for example
 // - symbols and strings are pushed on the stack on the fly as they are read
 // - this is slow but has a simple interface
+// - todo: replace next with peek proc and add a void pointer to allow buffered reads
 
 typedef struct tf_cursor tf_cursor;
 typedef tf_bool (*tf_read_proc)(tf_cursor*);
