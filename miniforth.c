@@ -280,12 +280,12 @@ tf_symbol tf_procedures[] =
     {},
   };
 
-tf_bool tf_cursor_reader_stdin_read(tf_cursor *c) {
+tf_bool tf_reader_stdin_read(tf_cursor *c) {
   int byte = getchar();
   if(byte >= 0) { c->_rbuff = (void*)(byte & 0xFF); return 1;}
   else          { c->_rbuff =            0; return 0;}
 }
-char tf_cursor_reader_stdin_peek(tf_cursor *c) {
+char tf_reader_stdin_peek(tf_cursor *c) {
   return (char)c->_rbuff;
 }
 
@@ -314,8 +314,7 @@ int main() {
   tf_stack _stack, *stack = &_stack; // so everybody does stack->
   tf_stack_init(stack);
 
-  tf_cursor _cursor = {.read = tf_cursor_reader_stdin_read,
-                       .peek = tf_cursor_reader_stdin_peek}, *cursor = &_cursor;
+  tf_cursor stdin_cursor = {.read = tf_reader_stdin_read, .peek = tf_reader_stdin_peek};
 
   while(1) {
     if(!tf_read(stack, cursor)) break;
