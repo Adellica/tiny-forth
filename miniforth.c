@@ -294,6 +294,7 @@ typedef struct tf_reader_argv {
   char ** argv; // pointer to next argv
 } tf_reader_argv;
 
+// todo: add single whitespace between argv's
 tf_bool tf_reader_argv_read(tf_cursor *c) {
   tf_reader_argv *rb = (tf_reader_argv*)c->_rbuff;
   char *current = rb->argv[0];
