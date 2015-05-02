@@ -10,6 +10,7 @@
 typedef unsigned int tf_size;
 typedef unsigned char tf_type;
 typedef int i32;
+typedef char tf_bool;
 
 typedef struct tf_stack {
   int size;
@@ -64,13 +65,33 @@ char* _tf_stack_pop_blob(tf_stack *stack, tf_size len) {
   return tf_stack_pt(stack);
 }
 
-// push an item to stack
-void tf_stack_push(tf_stack *stack, tf_size len, char* data, tf_type type) {
+void tf_stack_push_raw_char(tf_stack *stack, char c) {
+  tf_stack_ensure_size(stack, 1);
+  stack->root[stack->position] = c;
+  stack->position++;
+}
+void tf_stack_push_raw_type(tf_stack *stack, tf_type type) {
+  tf_stack_ensure_size(stack, sizeof(tf_type));
+  *(tf_type*)(stack->root + stack->position) = type;
+  stack->position += sizeof(tf_type);
+}
 
-  tf_stack_ensure_size(stack, len + sizeof(tf_type) + sizeof(tf_size));
-  _tf_stack_push_blob(stack, len, data);
-  _tf_stack_push_blob(stack, sizeof(tf_type), (char*)&type);
-  _tf_stack_push_blob(stack, sizeof(tf_size), (char*)&len);
+void tf_stack_push_raw_i32(tf_stack *stack, i32 value) {
+  tf_stack_ensure_size(stack, sizeof(i32));
+  *(i32*)(stack->root + stack->position) = value;
+  stack->position += sizeof(i32);
+}
+
+void tf_stack_push_raw_size(tf_stack *stack, tf_size size) {
+  tf_stack_ensure_size(stack, sizeof(tf_size));
+  *(tf_size*)(stack->root + stack->position) = size;
+  stack->position += sizeof(tf_size);
+}
+
+void tf_stack_push_fixnum(tf_stack *stack, i32 value) {
+  tf_stack_push_raw_i32(stack, value);
+  tf_stack_push_raw_type(stack, TF_TYPE_FIXNUM);
+  tf_stack_push_raw_size(stack, sizeof(i32));
 }
 
 // pop an item from stack
@@ -78,16 +99,6 @@ void tf_stack_pop_item(tf_stack *stack, tf_item *item) {
   item->size = *(tf_size*)  _tf_stack_pop_blob(stack, sizeof(tf_size));
   item->type = *(tf_type*)  _tf_stack_pop_blob(stack, sizeof(tf_type));
   item->data =              _tf_stack_pop_blob(stack, item->size);
-}
-
-void tf_stack_push_fixnum(tf_stack *stack, i32 value) {
-  tf_stack_push(stack, sizeof(i32), (char*)&value, TF_TYPE_FIXNUM);
-}
-void tf_stack_push_string(tf_stack *stack, char* str, int len) {
-  tf_stack_push(stack, len, str, TF_TYPE_STRING);
-}
-void tf_stack_push_symbol(tf_stack *stack, char* str, int len) {
-  tf_stack_push(stack, len, str, TF_TYPE_SYMBOL);
 }
 
 i32 tf_stack_pop_i32(tf_stack *stack) {
@@ -141,45 +152,91 @@ void tf_stack_print_hex(tf_stack *stack) {
 // ok     reads fixnum, string, symbols
 // todo   lazy buffers / interactive / don't need everything in memory
 
-char is_ws(char c) { if(c == ' ' || c == '\t' || c == '\n' || c == '\r') return 1; return 0; }
-char* read_ws(tf_stack *stack, char *str) { while(is_ws(str[0])) {str++;} return str; }
 
-char* read_fixnum(tf_stack *stack, char *str) {
-  char *end;
-  int val = strtol(str, &end, 0);
-  if(end != str && is_ws(end[0])) {
-    tf_stack_push_fixnum(stack, val);
-    return end;
+// - a cursor has a buffer of 1 byte and can be called to read the next byte
+// - this means we've only got 1 byte of the source in memory at a time
+// - this means we can't use strtol for example
+// - symbols and strings are pushed on the stack on the fly as they are read
+// - this is slow but has a simple interface
+
+typedef struct tf_cursor tf_cursor;
+typedef tf_bool (*tf_read_proc)(tf_cursor*);
+typedef struct tf_cursor {
+  char next;
+  tf_read_proc read;
+} tf_cursor;
+
+tf_bool is_ws(char c) { if(c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0) return 1; return 0; }
+tf_bool is_digit(char c) { if(c >= '0' && c <= '9') return 1; return 0; }
+tf_bool read_ws(tf_stack *stack, tf_cursor *c) { while(is_ws(c->next) && c->read(c)) ; return 1; }
+
+tf_bool read_fixnum(tf_stack *stack, tf_cursor *c) {
+  int val = 0;
+  tf_bool ok = 0;
+  while(is_digit(c->next)) {
+    val *= 10;
+    val += c->next - '0';
+    ok = 1;
+    if(!c->read(c)) break;
   }
-  return str;
+  if(ok && !is_ws(c->next)) {
+    printf("error 26ba8965: unexpected character %c in number\n", c->next);
+    return 0;
+  }
+  if(ok) {
+    tf_stack_push_fixnum(stack, val);
+    return 1;
+  }
+  return 0;
 }
 
 // todo: escape sequences?
-char* read_string(tf_stack *stack, char *str) {
-  if(str[0] == '"') {
-    str++; // consume first double-quote
-    char *start = str;
-    while(str[0] != '"') str++; // todo: check for zero byte?
-    tf_stack_push_string(stack, start, str - start);
-    str++; // consume last doublequote
+tf_bool read_string(tf_stack *stack, tf_cursor *c) {
+  if(c->next == '"') {
+    if(!c->read(c)) return 0; // consume first double-quote
+    int size = 0;
+    while(c->next != '"') {
+      tf_stack_push_raw_char(stack, c->next);
+      if(!c->read(c)) {
+        printf("error bdb138f3 unexpected eof while reading string\n");
+        stack->position -= size;
+        return 0;
+      }
+      size++;
+    }
+    tf_stack_push_raw_type(stack, TF_TYPE_STRING);
+    tf_stack_push_raw_size(stack, size);
+    c->read(c); // consume last doublequote (don't check for eof)
+    return 1;
   }
-  return str;
+  return 0;
 }
 
-char* read_symbol(tf_stack *stack, char *str) {
-  char* start = str;
-  while(!is_ws(str[0])) str++;
-  if(start != str) { tf_stack_push_symbol(stack, start, str - start); }
-  return str;
+tf_bool read_symbol(tf_stack *stack, tf_cursor *c) {
+  int size = 0;
+  while(!is_ws(c->next)) {
+    tf_stack_push_raw_char(stack, c->next);
+    size++;
+    if(!c->read(c)) break;
+  }
+  if(size) {
+    tf_stack_push_raw_type(stack, TF_TYPE_SYMBOL);
+    tf_stack_push_raw_size(stack, size);
+    return 1;
+  }
+  return 0;
 }
 
-char* tf_read(tf_stack *stack, char *str) {
+// - the next character may at any time be \0 which no tokenizers will match
+// - cursors must support multiple read calls after EOF
+tf_bool tf_read(tf_stack *stack, tf_cursor *c) {
   char* tmp;
-  if(str[0] == 0) return 0;
-  str = read_ws(stack, str);
-  if((tmp = read_fixnum(stack, str)) != str) return tmp;
-  else if((tmp = read_string(stack, str)) != str) return tmp;
-  return read_symbol(stack, str);
+  if(c->next == 0) { if(!c->read(c)) return 0; }
+  read_ws(stack, c);
+  if(read_fixnum(stack, c)) return 1;
+  else if(read_string(stack, c)) return 1;
+  return read_symbol(stack, c);
+  return 0;
 }
 
 
@@ -221,21 +278,21 @@ tf_symbol tf_procedures[] =
     {},
   };
 
+tf_bool tf_cursor_reader_stdin(tf_cursor *c) {
+  int byte = getchar();
+  if(byte >= 0) { c->next = byte; return 1;}
+  else          { c->next =    0; return 0;}
+}
+
 int main() {
   int i;
   tf_stack _stack, *stack = &_stack; // so everybody does stack->
   tf_stack_init(stack);
 
+  tf_cursor _cursor = {.read = tf_cursor_reader_stdin}, *cursor = &_cursor;
 
-  char *end;
-  char _s[] = // (* 256 256)
-    " \"I'm gonna square 256\" \n\n"
-    "\n\n    0x100 dup mult   \n\n"
-    " \"^--- 10 - 5\""
-    "\n\r\n 10 7 sub  \"\"", *s = _s;
-
-  while(s != 0) {
-    s = tf_read(stack, s);
+  while(1) {
+    if(!tf_read(stack, cursor)) break;
     int pos = stack->position;
     tf_item item;
     tf_stack_pop_item(stack, &item);
