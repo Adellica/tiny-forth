@@ -282,11 +282,11 @@ tf_symbol tf_procedures[] =
 
 tf_bool tf_reader_stdin_read(tf_cursor *c) {
   int byte = getchar();
-  if(byte >= 0) { c->_rbuff = (void*)(byte & 0xFF); return 1;}
+  if(byte >= 0) { c->_rbuff = (void*)(long)(byte & 0xFF); return 1;}
   else          { c->_rbuff =            0; return 0;}
 }
 char tf_reader_stdin_peek(tf_cursor *c) {
-  return (char)c->_rbuff;
+  return (char)(long)c->_rbuff;
 }
 
 void tf_eval_top(tf_stack *stack) {
