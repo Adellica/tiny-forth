@@ -158,30 +158,31 @@ void tf_stack_print_hex(tf_stack *stack) {
 // - this means we can't use strtol for example
 // - symbols and strings are pushed on the stack on the fly as they are read
 // - this is slow but has a simple interface
-// - todo: replace next with peek proc and add a void pointer to allow buffered reads
 
 typedef struct tf_cursor tf_cursor;
+typedef char (*tf_peek_proc)(tf_cursor*);
 typedef tf_bool (*tf_read_proc)(tf_cursor*);
 typedef struct tf_cursor {
-  char next;
+  void* _rbuff; // arbitrary reader data (buffers etc)
+  tf_peek_proc peek;
   tf_read_proc read;
 } tf_cursor;
 
 tf_bool is_ws(char c) { if(c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0) return 1; return 0; }
 tf_bool is_digit(char c) { if(c >= '0' && c <= '9') return 1; return 0; }
-tf_bool read_ws(tf_stack *stack, tf_cursor *c) { while(is_ws(c->next) && c->read(c)) ; return 1; }
+tf_bool read_ws(tf_stack *stack, tf_cursor *c) { while(is_ws(c->peek(c)) && c->read(c)) ; return 1; }
 
 tf_bool read_fixnum(tf_stack *stack, tf_cursor *c) {
   int val = 0;
   tf_bool ok = 0;
-  while(is_digit(c->next)) {
+  while(is_digit(c->peek(c))) {
     val *= 10;
-    val += c->next - '0';
+    val += c->peek(c) - '0';
     ok = 1;
     if(!c->read(c)) break;
   }
-  if(ok && !is_ws(c->next)) {
-    printf("error 26ba8965: unexpected character %c in number\n", c->next);
+  if(ok && !is_ws(c->peek(c))) {
+    printf("error 26ba8965: unexpected character %c in number\n", c->peek(c));
     return 0;
   }
   if(ok) {
@@ -193,11 +194,11 @@ tf_bool read_fixnum(tf_stack *stack, tf_cursor *c) {
 
 // todo: escape sequences?
 tf_bool read_string(tf_stack *stack, tf_cursor *c) {
-  if(c->next == '"') {
+  if(c->peek(c) == '"') {
     if(!c->read(c)) return 0; // consume first double-quote
     int size = 0;
-    while(c->next != '"') {
-      tf_stack_push_raw_char(stack, c->next);
+    while(c->peek(c) != '"') {
+      tf_stack_push_raw_char(stack, c->peek(c));
       if(!c->read(c)) {
         printf("error bdb138f3 unexpected eof while reading string\n");
         stack->position -= size;
@@ -215,8 +216,8 @@ tf_bool read_string(tf_stack *stack, tf_cursor *c) {
 
 tf_bool read_symbol(tf_stack *stack, tf_cursor *c) {
   int size = 0;
-  while(!is_ws(c->next)) {
-    tf_stack_push_raw_char(stack, c->next);
+  while(!is_ws(c->peek(c))) {
+    tf_stack_push_raw_char(stack, c->peek(c));
     size++;
     if(!c->read(c)) break;
   }
@@ -232,7 +233,7 @@ tf_bool read_symbol(tf_stack *stack, tf_cursor *c) {
 // - cursors must support multiple read calls after EOF
 tf_bool tf_read(tf_stack *stack, tf_cursor *c) {
   char* tmp;
-  if(c->next == 0) { if(!c->read(c)) return 0; }
+  if(c->peek(c) == 0) { if(!c->read(c)) return 0; }
   read_ws(stack, c);
   if(read_fixnum(stack, c)) return 1;
   else if(read_string(stack, c)) return 1;
@@ -279,10 +280,13 @@ tf_symbol tf_procedures[] =
     {},
   };
 
-tf_bool tf_cursor_reader_stdin(tf_cursor *c) {
+tf_bool tf_cursor_reader_stdin_read(tf_cursor *c) {
   int byte = getchar();
-  if(byte >= 0) { c->next = byte; return 1;}
-  else          { c->next =    0; return 0;}
+  if(byte >= 0) { c->_rbuff = (void*)(byte & 0xFF); return 1;}
+  else          { c->_rbuff =            0; return 0;}
+}
+char tf_cursor_reader_stdin_peek(tf_cursor *c) {
+  return (char)c->_rbuff;
 }
 
 int main() {
@@ -290,7 +294,8 @@ int main() {
   tf_stack _stack, *stack = &_stack; // so everybody does stack->
   tf_stack_init(stack);
 
-  tf_cursor _cursor = {.read = tf_cursor_reader_stdin}, *cursor = &_cursor;
+  tf_cursor _cursor = {.read = tf_cursor_reader_stdin_read,
+                       .peek = tf_cursor_reader_stdin_peek}, *cursor = &_cursor;
 
   while(1) {
     if(!tf_read(stack, cursor)) break;
