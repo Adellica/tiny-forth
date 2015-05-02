@@ -289,6 +289,29 @@ char tf_reader_stdin_peek(tf_cursor *c) {
   return (char)(long)c->_rbuff;
 }
 
+typedef struct tf_reader_argv {
+  int argc; // number of argv's
+  char ** argv; // pointer to next argv
+} tf_reader_argv;
+
+tf_bool tf_reader_argv_read(tf_cursor *c) {
+  tf_reader_argv *rb = (tf_reader_argv*)c->_rbuff;
+  char *current = rb->argv[0];
+
+  if(current == 0) return 0;
+  rb->argv[0]++; // move pointer
+  if(rb->argv[0][0] == 0) { // end of curent buffer
+    if(rb->argc <= 1) return 0;
+    int i;
+    rb->argv++;
+    rb->argc--;
+  }
+  return 1;
+}
+char tf_reader_argv_peek(tf_cursor *c) {
+  return ((tf_reader_argv*)c->_rbuff)->argv[0][0];
+}
+
 void tf_eval_top(tf_stack *stack) {
   int save_pos = stack->position;
   tf_item item;
@@ -310,14 +333,18 @@ void tf_eval_top(tf_stack *stack) {
     stack->position = save_pos;
 }
 
-int main() {
+int main(int argc, char **argv) {
   tf_stack _stack, *stack = &_stack; // so everybody does stack->
   tf_stack_init(stack);
 
+  tf_reader_argv argv_reader_data = {.argc = argc - 1, .argv = &argv[1]}; // exclude progname
+  tf_cursor argv_cursor = {.read = tf_reader_argv_read ,
+                           .peek = tf_reader_argv_peek ,
+                           ._rbuff = &argv_reader_data};
   tf_cursor stdin_cursor = {.read = tf_reader_stdin_read, .peek = tf_reader_stdin_peek};
 
   while(1) {
-    if(!tf_read(stack, cursor)) break;
+    if(!tf_read(stack, &argv_cursor)) break;
     tf_eval_top(stack);
   }
   tf_stack_print(stack);
