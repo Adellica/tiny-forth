@@ -290,7 +290,6 @@ char tf_cursor_reader_stdin_peek(tf_cursor *c) {
 }
 
 int main() {
-  int i;
   tf_stack _stack, *stack = &_stack; // so everybody does stack->
   tf_stack_init(stack);
 
