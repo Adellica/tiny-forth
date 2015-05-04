@@ -51,13 +51,6 @@ void tf_stack_ensure_size(tf_stack *stack, int size) {
   }
 }
 
-// must call ensure_size before doing this:
-void _tf_stack_push_blob(tf_stack *stack, tf_size len, char* data) {
-  char* block = tf_stack_pt(stack);
-  memcpy(block, data, len);
-  stack->position += len;
-}
-
 // place a simple blob of fixed size onto stack. this size much be known at pop-time!
 char* _tf_stack_pop_blob(tf_stack *stack, tf_size len) {
   if(stack->position < len) { printf("error 6f13cf5a stack underflow\n");exit(0);}
