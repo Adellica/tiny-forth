@@ -51,7 +51,13 @@ tf_obj tf_car(tf_obj obj) {
   return obj->value.pair.car;
 }
 
+tf_fixnum_t tf_pairp(tf_obj o) {
+  if(o) return o->tag == TF_TAG_PAIR;
+  return 0;
+}
+
 #define TF_PRINT_FLAG_ADR 0x01
+#define TF_PRINT_FLAG_IN_LIST 0x02
 
 void tf_print(tf_obj o, int flags) {
   if(flags & TF_PRINT_FLAG_ADR) {
@@ -59,15 +65,16 @@ void tf_print(tf_obj o, int flags) {
   }
 
   if(o->tag == TF_TAG_PAIR) {
-    printf("(");
-    tf_print(tf_car(o), flags);
-    printf(" . ");
-    tf_print(tf_cdr(o), flags);
-    printf(")");
+    if(flags & TF_PRINT_FLAG_IN_LIST) printf(" ");
+    else printf("(");
+    tf_print(tf_car(o), flags | TF_PRINT_FLAG_IN_LIST);
+    if(!tf_pairp(o)) printf(" . ");
+    tf_print(tf_cdr(o), flags | TF_PRINT_FLAG_IN_LIST);
+    if(!(flags & TF_PRINT_FLAG_IN_LIST)) printf(")");
   } else if(o->tag == TF_TAG_FIXNUM) {
     printf("%d", o->value.fixnum);
   } else if(o->tag == TF_TAG_NIL) {
-    printf("()");
+    if(!(flags & TF_PRINT_FLAG_IN_LIST)) printf("()");
   } else {
     printf("[unknown %08x %c]", o, o->tag);
   }
@@ -149,9 +156,8 @@ int main() {
 
   printf("\n\n");
 
-  tf_print(tf_cons(m,
-                   tf_fixnum(m, 13),
-                   tf_cons(m, tf_fixnum(m, 121), tf_nil)), 0);
+  tf_print(tf_cons(m, tf_fixnum(m, 13),
+                   tf_cons(m, tf_fixnum(m, 121), tf_cons(m, tf_fixnum(m, 509), tf_nil))), 0);
   printf("\n");
 
   tf_machine_free(m);
