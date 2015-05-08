@@ -296,9 +296,7 @@ tf_bool tf_reader_argv_read(tf_cursor *c) {
   rb->argv[0]++; // move pointer
   if(rb->argv[0][0] == 0) { // end of current buffer
     if(rb->argc <= 1) return 0;
-    int i;
-    rb->argv++;
-    rb->argc--;
+    rb->argv++; rb->argc--;
   }
   return 1;
 }
