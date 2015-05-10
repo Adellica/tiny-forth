@@ -166,9 +166,9 @@ void tf_machine_free(tf_machine *m) {
 
 // note to self: macros in anything but LISP is a bad idea, but let's
 // see if this can work:
-#define tf_fold(list, iter, result)        \
+#define tf_fold(var, list, iter, result)         \
   tf_obj c = list; \
-  while(tf_pairp(c)) { iter; c = tf_cdr(c); } \
+  while(tf_pairp(c)) { tf_obj var=tf_car(c);iter; c = tf_cdr(c); } \
   if(c->tag == TF_TAG_NIL) {result;} \
   else {printf("error: imporoper list %08x\n", list);};
 
@@ -178,7 +178,7 @@ tf_obj tf_eval(tf_machine *m, tf_obj s);
 tf_obj tf_apply(tf_machine *m, tf_obj proc, tf_obj args) {
   if(proc == &tf_proc_add) {
     int r = 0;
-    tf_fold(args, r += tf_get_fixnum(tf_eval(m, tf_car(c))), return tf_fixnum(m, r));
+    tf_fold(it, args, r += tf_get_fixnum(it), return tf_fixnum(m, r));
   }
   else
     printf("unknown procedure %x08\n", proc);
