@@ -184,14 +184,22 @@ tf_obj tf_apply(tf_machine *m, tf_obj proc, tf_obj args) {
     printf("unknown procedure %x08\n", proc);
 }
 
+// (map (lambda (x) (+ 1 x)) (quote (1 2 3)))
+tf_obj tf_reverse(tf_machine *m, tf_obj lst) {
+  tf_obj r = tf_nil;
+  tf_fold(it, lst, r = tf_cons(m, it, r), );
+  return r;
+}
+
 tf_obj tf_eval(tf_machine *m, tf_obj s) {
-  if(s->tag == TF_TAG_FIXNUM) return s;
-  else if(s->tag == TF_TAG_NIL) return s;
-  else if(s->tag == TF_TAG_PAIR) {
-    tf_apply(m, tf_car(s), tf_cdr(s));
+  if(s->tag == TF_TAG_PAIR) {
+    tf_obj head = tf_nil;
+    tf_fold(it, s, head = tf_cons(m, tf_eval(m, it), head), ;);
+    tf_obj res = tf_reverse(m, head);
+    tf_apply(m, tf_car(res), tf_cdr(res));
   }
   else {
-    printf("unknown type, cannot eval: "); tf_print(s, 0);
+    return s;
   }
 }
 
