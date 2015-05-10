@@ -52,7 +52,11 @@ tf_obj tf_car(tf_obj obj) {
   tf_assert(obj->tag == TF_TAG_PAIR);
   return obj->value.pair.car;
 }
-
+tf_fixnum_t tf_get_fixnum(tf_obj obj) {
+  if(obj->tag == TF_TAG_FIXNUM) return obj->value.fixnum;
+  printf("error: not a fixnum %08x!", obj);
+  return 0;
+}
 tf_fixnum_t tf_pairp(tf_obj o) {
   if(o) return o->tag == TF_TAG_PAIR;
   return 0;
@@ -162,6 +166,33 @@ void tf_machine_free(tf_machine *m) {
   } while(o = next);
 }
 
+static tf_obj_struct tf_proc_add;
+tf_obj tf_eval(tf_machine *m, tf_obj s);
+tf_obj tf_apply(tf_machine *m, tf_obj proc, tf_obj args) {
+  if(proc == &tf_proc_add) {
+    tf_obj c = args;
+    int r = 0;
+    while(tf_pairp(c)) {
+      tf_obj s = tf_car(c);
+      r += tf_get_fixnum(tf_eval(m, s));
+      c = tf_cdr(c);
+    }
+    if(c->tag == TF_TAG_NIL) return tf_fixnum(m, r);
+    else printf("error: improper list %08x\n", args);
+  }
+}
+
+tf_obj tf_eval(tf_machine *m, tf_obj s) {
+  if(s->tag == TF_TAG_FIXNUM) return s;
+  else if(s->tag == TF_TAG_NIL) return s;
+  else if(s->tag == TF_TAG_PAIR) {
+    tf_apply(m, tf_car(s), tf_cdr(s));
+  }
+  else {
+    printf("unknown type, cannot eval: "); tf_print(s, 0);
+  }
+}
+
 int main() {
   tf_machine _machine = {.heap = tf_nil};
   tf_machine *m = &_machine;
@@ -171,10 +202,27 @@ int main() {
 
   printf("\n\n");
 
-  tf_print(tf_cons(m, tf_fixnum(m, 13),
-                   tf_cons(m, tf_cons(m, tf_fixnum(m, 121),
-                                      tf_cons(m, tf_fixnum(m, 509), tf_nil)),
-                           tf_nil)), 0);
+  tf_obj tst = tf_cons(m,
+                       &tf_proc_add,
+                       tf_cons(m,
+                               tf_fixnum(m, 100),
+                               tf_cons(m,
+                                       tf_fixnum(m, 20),
+                                       tf_nil)));
+
+  tf_obj tst2 = tf_cons(m,
+                        &tf_proc_add,
+                        tf_cons(m,
+                                tst,
+                                tf_cons(m,
+                                        tf_fixnum(m, 3),
+                                        tf_nil)));
+  tf_obj result = tf_eval(m, tst2);
+
+  printf("input:: ");
+  tf_print(tst2, 0);
+  printf("result: ");
+  tf_print(result, 0);
   printf("\n");
 
   tf_machine_free(m);
