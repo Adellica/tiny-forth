@@ -180,6 +180,8 @@ tf_obj tf_apply(tf_machine *m, tf_obj proc, tf_obj args) {
     int r = 0;
     tf_fold(args, r += tf_get_fixnum(tf_eval(m, tf_car(c))), return tf_fixnum(m, r));
   }
+  else
+    printf("unknown procedure %x08\n", proc);
 }
 
 tf_obj tf_eval(tf_machine *m, tf_obj s) {
