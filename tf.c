@@ -57,7 +57,7 @@ tf_fixnum_t tf_pairp(tf_obj o) {
 }
 
 #define TF_PRINT_FLAG_ADR 0x01
-#define TF_PRINT_FLAG_IN_LIST 0x02
+#define TF_PRINT_FLAG_IN_LIST 0x02 // smart printing of cells
 
 void tf_print(tf_obj o, int flags) {
   if(flags & TF_PRINT_FLAG_ADR) {
@@ -67,7 +67,7 @@ void tf_print(tf_obj o, int flags) {
   if(o->tag == TF_TAG_PAIR) {
     if(flags & TF_PRINT_FLAG_IN_LIST) printf(" ");
     else printf("(");
-    tf_print(tf_car(o), flags | TF_PRINT_FLAG_IN_LIST);
+    tf_print(tf_car(o), tf_pairp(tf_car(o)) ? flags & ~TF_PRINT_FLAG_IN_LIST : flags | TF_PRINT_FLAG_IN_LIST);
     if(!tf_pairp(o)) printf(" . ");
     tf_print(tf_cdr(o), flags | TF_PRINT_FLAG_IN_LIST);
     if(!(flags & TF_PRINT_FLAG_IN_LIST)) printf(")");
