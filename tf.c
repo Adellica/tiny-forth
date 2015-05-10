@@ -111,7 +111,7 @@ void tf_obj_free(tf_obj o) {
   if(!o) {printf("somebody wants to free obj %08x\n", o);}
 
   if(o->freer) {
-    printf("freeing %s %08x from %s:%d  %08x\n", tf_type_str(o), o, o->where, o->lineno, o->freer);
+    printf("freeing %7s %08x from %s:%d  %08x\n", tf_type_str(o), o, o->where, o->lineno, o->freer);
     tf_free_proc freer = o->freer;
     o->freer = 0;
     freer(o);
@@ -126,9 +126,7 @@ tf_obj _tf_obj_alloc(tf_machine *machine, char* where, int linenum) {
 
   obj->where = where; obj->lineno = linenum;
   dst->where = where; dst->lineno = linenum;
-  
-  printf("allocat %08x\n", obj);
-  printf("allocat %08x\n", dst);
+
   _tf_cons(dst, obj, machine->heap);
   machine->heap = dst;
   obj->tag = TF_TAG_NIL;
@@ -221,7 +219,7 @@ int main() {
                                         tf_nil)));
   tf_obj result = tf_eval(m, tst2);
 
-  printf("input:: ");
+  printf("input: ");
   tf_print(tst2, 0);
   printf("result: ");
   tf_print(result, 0);
