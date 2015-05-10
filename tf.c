@@ -178,7 +178,7 @@ tf_obj tf_eval(tf_machine *m, tf_obj s);
 tf_obj tf_apply(tf_machine *m, tf_obj proc, tf_obj args) {
   if(proc == &tf_proc_add) {
     int r = 0;
-    tf_fold(args, r += tf_get_fixnum(tf_eval(m, tf_car(c))), tf_fixnum(m, r));
+    tf_fold(args, r += tf_get_fixnum(tf_eval(m, tf_car(c))), return tf_fixnum(m, r));
   }
 }
 
