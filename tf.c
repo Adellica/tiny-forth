@@ -197,11 +197,6 @@ int main() {
   tf_machine _machine = {.heap = tf_nil};
   tf_machine *m = &_machine;
 
-  tf_obj obj1 = tf_obj_alloc(m);
-  tf_obj obj2 = tf_obj_alloc(m);
-
-  printf("\n\n");
-
   tf_obj tst = tf_cons(m,
                        &tf_proc_add,
                        tf_cons(m,
