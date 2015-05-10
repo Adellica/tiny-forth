@@ -20,6 +20,8 @@ typedef struct tf_obj_struct {
   tf_tag tag;
   unsigned int refs;
   tf_free_proc freer;
+  char* where;
+  int lineno;
   union {
     struct {
       tf_obj car;
@@ -89,27 +91,38 @@ void _tf_cons(tf_obj dest, tf_obj a, tf_obj lst) {
 
 // force free
 void _tf_obj_free(tf_obj o) {
-  printf("forced free %08x\n", o);
   free(o);
 }
+char* tf_type_str(tf_obj o) {
+  switch(o->tag) {
+  case TF_TAG_FIXNUM: return "fixnum";
+  case TF_TAG_PAIR: return "pair";
+  default: return "unknown";
+  }
+}
+
 // does basic checking
 void tf_obj_free(tf_obj o) {
 
   if(!o) {printf("somebody wants to free obj %08x\n", o);}
 
   if(o->freer) {
-    printf("freeing %08x using proc %08x\n", o, o->freer);
+    printf("freeing %s %08x from %s:%d  %08x\n", tf_type_str(o), o, o->where, o->lineno, o->freer);
     tf_free_proc freer = o->freer;
     o->freer = 0;
     freer(o);
   }
 }
 
-tf_obj tf_obj_alloc(tf_machine *machine) {
+tf_obj _tf_obj_alloc(tf_machine *machine, char* where, int linenum) {
   tf_obj obj = malloc(TF_OBJ_SIZE);
   tf_obj dst = malloc(TF_OBJ_SIZE);
   obj->freer = _tf_obj_free;
   dst->freer = _tf_obj_free;
+
+  obj->where = where; obj->lineno = linenum;
+  dst->where = where; dst->lineno = linenum;
+  
   printf("allocat %08x\n", obj);
   printf("allocat %08x\n", dst);
   _tf_cons(dst, obj, machine->heap);
@@ -117,6 +130,8 @@ tf_obj tf_obj_alloc(tf_machine *machine) {
   obj->tag = TF_TAG_NIL;
   return obj;
 }
+
+#define tf_obj_alloc(m) _tf_obj_alloc(m, __FILE__, __LINE__);
 
 tf_obj tf_cons(tf_machine *machine, tf_obj a, tf_obj lst) {
   tf_obj pair = tf_obj_alloc(machine);
