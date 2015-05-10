@@ -157,7 +157,9 @@ int main() {
   printf("\n\n");
 
   tf_print(tf_cons(m, tf_fixnum(m, 13),
-                   tf_cons(m, tf_fixnum(m, 121), tf_cons(m, tf_fixnum(m, 509), tf_nil))), 0);
+                   tf_cons(m, tf_cons(m, tf_fixnum(m, 121),
+                                      tf_cons(m, tf_fixnum(m, 509), tf_nil)),
+                           tf_nil)), 0);
   printf("\n");
 
   tf_machine_free(m);
